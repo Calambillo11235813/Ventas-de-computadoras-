@@ -85,12 +85,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /**
- * Lee el usuario guardado en localStorage (si existe)
+ * Lee el usuario guardado en sessionStorage (si existe)
  * Se usa para hidratar el estado al cargar la aplicación
  */
 const getStoredUser = (): User | null => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as User) : null;
   } catch {
     return null;
@@ -159,12 +159,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Rastreador de intentos fallidos (keyed by email, espeja los bloqueos del backend)
   const [loginAttempts, setLoginAttempts] = useState<Map<string, LoginAttempt>>(new Map());
 
-  // Sincronizar usuario con localStorage
+  // Sincronizar usuario con sessionStorage
   useEffect(() => {
     if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
       clearAuthToken();
     }
   }, [user]);

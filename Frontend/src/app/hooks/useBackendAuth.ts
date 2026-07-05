@@ -31,10 +31,10 @@ export const useBackendAuth = () => {
     try {
       const response = await authAPI.login(email);
       
-      // Guardar tokens en localStorage
-      localStorage.setItem('access_token', response.access);
-      localStorage.setItem('refresh_token', response.refresh);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Guardar tokens en sessionStorage
+      sessionStorage.setItem('access_token', response.access);
+      sessionStorage.setItem('refresh_token', response.refresh);
+      sessionStorage.setItem('user', JSON.stringify(response.user));
 
       return {
         success: true,
@@ -58,19 +58,19 @@ export const useBackendAuth = () => {
   };
 
   /**
-   * Obtener token de localStorage
+   * Obtener token de sessionStorage
    */
   const getAccessToken = (): string | null => {
-    return localStorage.getItem('access_token');
+    return sessionStorage.getItem('access_token');
   };
 
   /**
    * Logout
    */
   const backendLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user');
     setError(null);
   };
 
@@ -78,7 +78,7 @@ export const useBackendAuth = () => {
    * Obtener usuario almacenado
    */
   const getStoredUser = (): ApiUser | null => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) return null;
     try {
       return JSON.parse(userStr);

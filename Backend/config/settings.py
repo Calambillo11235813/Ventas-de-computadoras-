@@ -289,3 +289,8 @@ FRONTEND_URL           = config('FRONTEND_URL',           default='https://santa
 # Ver apps/orders/voz_views.py. La clave nunca sale al frontend.
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
 GEMINI_MODEL   = config('GEMINI_MODEL',   default='gemini-2.0-flash')
+
+# ── Pago con QR Bancario (Transferencia) ───────────────────────────────────────
+QR_BANCO_IMAGEN_URL = config('QR_BANCO_IMAGEN_URL', default='/media/YAPE_QR.jpg')
+QR_BANCO_NOMBRE     = config('QR_BANCO_NOMBRE',     default='Santa Cruz Computer SRL')
+QR_BANCO_CUENTA     = config('QR_BANCO_CUENTA',     default='Yape/Transferencia')

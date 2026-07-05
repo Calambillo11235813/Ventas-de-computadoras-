@@ -34,6 +34,7 @@ interface VentaDetail {
   total: number;
   status: string;
   fecha: string;
+  comprobante_url?: string | null;
   detalles: Array<{
     id: number;
     producto_name: string;
@@ -201,9 +202,12 @@ export function SalesHistory() {
     return true;
   });
 
-  const totalEfectivo      = (historialData?.ventas ?? []).reduce((s, v) => s + v.pagos.filter(p => p.metodo === 'efectivo').reduce((a, p) => a + (Number(p.monto) || 0), 0), 0);
-  const totalTarjeta       = (historialData?.ventas ?? []).reduce((s, v) => s + v.pagos.filter(p => p.metodo === 'tarjeta').reduce((a, p) => a + (Number(p.monto) || 0), 0), 0);
-  const totalTransferencia = (historialData?.ventas ?? []).reduce((s, v) => s + v.pagos.filter(p => p.metodo === 'transferencia').reduce((a, p) => a + (Number(p.monto) || 0), 0), 0);
+  const total_ventas = ventasFiltradas.length;
+  const total_monto  = ventasFiltradas.reduce((s, v) => s + (Number(v.total) || 0), 0);
+
+  const totalEfectivo      = ventasFiltradas.reduce((s, v) => s + (v.pagos || []).filter(p => p.metodo === 'efectivo').reduce((a, p) => a + (Number(p.monto) || 0), 0), 0);
+  const totalTarjeta       = ventasFiltradas.reduce((s, v) => s + (v.pagos || []).filter(p => p.metodo === 'tarjeta').reduce((a, p) => a + (Number(p.monto) || 0), 0), 0);
+  const totalTransferencia = ventasFiltradas.reduce((s, v) => s + (v.pagos || []).filter(p => p.metodo === 'transferencia').reduce((a, p) => a + (Number(p.monto) || 0), 0), 0);
 
   // Lista unica de vendedores presentes en las ventas (excluye pedidos online)
   const vendedoresUnicos = (() => {
@@ -427,7 +431,7 @@ export function SalesHistory() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total de Ventas</p>
-                  <p className="text-2xl font-bold text-gray-900">{historialData.total_ventas}</p>
+                  <p className="text-2xl font-bold text-gray-900">{total_ventas}</p>
                 </div>
               </div>
             </div>
@@ -438,7 +442,7 @@ export function SalesHistory() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Monto Total</p>
-                  <p className="text-2xl font-bold text-gray-900">{(Number(historialData.total_monto) || 0).toFixed(2)} Bs</p>
+                  <p className="text-2xl font-bold text-gray-900">{total_monto.toFixed(2)} Bs</p>
                 </div>
               </div>
             </div>
@@ -450,8 +454,8 @@ export function SalesHistory() {
                 <div>
                   <p className="text-sm text-gray-600">Promedio por Venta</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {historialData.total_ventas > 0
-                      ? ((Number(historialData.total_monto) || 0) / historialData.total_ventas).toFixed(2)
+                    {total_ventas > 0
+                      ? (total_monto / total_ventas).toFixed(2)
                       : '0.00'} Bs
                   </p>
                 </div>
@@ -833,17 +837,30 @@ export function SalesHistory() {
                           : <ChevronDown className="w-5 h-5 text-gray-600" />
                         }
                       </div>
-                      {venta.status === 'pending' && (
-                        <span className="text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">
-                          Validación Manual
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                        {venta.status === 'pending' && (
+                          <span className="text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">
+                            Validación Manual
+                          </span>
+                        )}
+                        {venta.comprobante_url && (
+                          <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 flex items-center gap-1 mt-1">
+                            📎 Comprobante
+                          </span>
+                        )}
+                      </div>
+                    </button>
 
-                  {(canComplete && venta.status === 'pending') || venta.status === 'completed' ? (
-                    <div className="px-4 sm:px-6 pb-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
-                      {canComplete && venta.status === 'pending' && (
+                    {(canComplete && venta.status === 'pending') || venta.status === 'completed' || venta.comprobante_url ? (
+                      <div className="px-4 sm:px-6 pb-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
+                        {venta.comprobante_url && (
+                          <button
+                            onClick={() => window.open(venta.comprobante_url!.startsWith('http') ? venta.comprobante_url! : `${API_BASE_URL.replace('/api/v1', '')}${venta.comprobante_url}`, '_blank')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                          >
+                            📎 Ver Comprobante
+                          </button>
+                        )}
+                        {canComplete && venta.status === 'pending' && (
                         <>
                           <button
                             onClick={() => handleConfirmarEntrega(venta.id)}

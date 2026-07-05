@@ -17,8 +17,9 @@
  * - qr   → 'transferencia' en el backend
  */
 import { useEffect, useState } from 'react';
-import { Trash2, CreditCard, ShoppingBag, X, Crown } from 'lucide-react';
-import { clientesAPI, stripeAPI, BACKEND_ROOT_URL, ApiCliente } from '../services/api';
+import { useNavigate } from 'react-router';
+import { Trash2, CreditCard, ShoppingBag, X, Crown, QrCode, CheckCircle } from 'lucide-react';
+import { clientesAPI, stripeAPI, qrBancoAPI, BACKEND_ROOT_URL, ApiCliente } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
@@ -31,17 +32,24 @@ interface StoreCartItem {
   imagen_url?: string | null;
 }
 
-// Único método de pago: tarjeta vía Stripe (el QR se retiró por no estar disponible).
-type PaymentMethod = 'card';
+// Múltiples métodos de pago
+type PaymentMethod = 'card' | 'qr';
 
 export function Cart() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [cartItems, setCartItems] = useState<StoreCartItem[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qr');
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [processingOrder, setProcessingOrder] = useState(false);
   const [cliente, setCliente] = useState<ApiCliente | null>(null);
   const [aplicarDescuento, setAplicarDescuento] = useState(true);
+  
+  // Estados para el QR Modal
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrInfo, setQrInfo] = useState<{ qr_imagen: string; titular: string; cuenta: string } | null>(null);
+  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
+  const [comprobantePreview, setComprobantePreview] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('storeCart');
@@ -87,9 +95,7 @@ export function Cart() {
   const total = subtotal - descuentoAplicado;
   const esVip = !!cliente?.es_vip;
 
-  // Procesa el pedido: crea la sesión de Stripe y redirige a la pasarela de pago.
-  // La venta se crea al volver del pago (página /payment-success). El carrito se
-  // conserva por si el cliente cancela el pago.
+  // Procesa el pedido: crea la sesión de Stripe o la venta por QR
   const handleCheckout = async () => {
     if (!user) { alert('Debes iniciar sesión para realizar un pedido'); return; }
     setProcessingOrder(true);
@@ -100,20 +106,67 @@ export function Cart() {
         precio_unitario: i.price,
       }));
 
-      const { url } = await stripeAPI.createCheckoutSession({
-        cliente: parseInt(user.id),
-        detalles,
-        monto: total,
-        aplicar_descuento_vip: aplicarDescuento,
-      });
-      window.location.href = url;
+      if (paymentMethod === 'card') {
+        const { url } = await stripeAPI.createCheckoutSession({
+          cliente: parseInt(user.id),
+          detalles,
+          monto: total,
+          aplicar_descuento_vip: aplicarDescuento,
+        });
+        window.location.href = url;
+      } else {
+        // QR Bancario: solo obtenemos la info y mostramos el modal, NO creamos el pedido todavía
+        const info = await qrBancoAPI.getInfo();
+        setQrInfo(info);
+        setShowCheckoutModal(false);
+        setShowQrModal(true);
+        setProcessingOrder(false);
+      }
     } catch (err) {
-      alert(`Error al procesar el pago: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      alert(`Error al procesar el pedido: ${err instanceof Error ? err.message : 'Error desconocido'}`);
       setProcessingOrder(false);
     }
   };
 
+  const handleConfirmQRPayment = async () => {
+    if (!user) return;
+    if (!comprobanteFile) {
+      alert("Debes adjuntar el comprobante de transferencia");
+      return;
+    }
+    setProcessingOrder(true);
+    try {
+      const detalles = cartItems.map(i => ({
+        producto: i.productId,
+        cantidad: i.quantity,
+        precio_unitario: i.price,
+      }));
+
+      await qrBancoAPI.crearPedido({
+        cliente: parseInt(user.id),
+        detalles,
+        monto: total,
+        aplicar_descuento_vip: aplicarDescuento,
+      }, comprobanteFile);
+      
+      localStorage.removeItem('storeCart'); // Limpiamos el carrito local
+      navigate('/qr-payment-success');
+    } catch (err) {
+      alert(`Error al procesar el pedido: ${err instanceof Error ? err.message : 'Error desconocido'}`);
+      setProcessingOrder(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setComprobanteFile(file);
+      setComprobantePreview(URL.createObjectURL(file));
+    }
+  };
+
   const paymentMethods = [
+    { value: 'qr' as PaymentMethod, label: 'Transferencia QR Bancario', icon: QrCode },
     { value: 'card' as PaymentMethod, label: 'Tarjeta de Crédito/Débito', icon: CreditCard },
   ];
 
@@ -289,11 +342,79 @@ export function Cart() {
               </div>
               <button onClick={handleCheckout} disabled={processingOrder}
                 className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50">
-                {processingOrder ? 'Procesando...' : 'Pagar con tarjeta'}
+                {processingOrder ? 'Procesando...' : paymentMethod === 'qr' ? 'Generar QR de Pago' : 'Pagar con tarjeta'}
               </button>
               <p className="mt-2 text-xs text-center text-gray-500">
-                Serás redirigido a la pasarela segura de Stripe para completar el pago.
+                {paymentMethod === 'qr' 
+                  ? 'Se generará un QR para que transfieras desde la app de tu banco.'
+                  : 'Serás redirigido a la pasarela segura de Stripe para completar el pago.'}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQrModal && qrInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full overflow-hidden text-center">
+            <div className="bg-blue-600 p-6 text-white">
+              <h2 className="text-2xl font-bold mb-1">Pago por QR</h2>
+              <p className="text-blue-100">Transfiere el monto exacto</p>
+            </div>
+            <div className="p-8">
+              <div className="text-3xl font-bold text-gray-900 mb-6">{total.toFixed(2)} Bs</div>
+              
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 inline-block mb-6 shadow-sm">
+                <img 
+                  src={qrInfo.qr_imagen.startsWith('http') ? qrInfo.qr_imagen : `${BACKEND_ROOT_URL}${qrInfo.qr_imagen}`} 
+                  alt="QR Bancario" 
+                  className="w-48 h-48 object-cover rounded-lg mx-auto"
+                />
+              </div>
+
+              <div className="text-sm text-gray-600 mb-6 space-y-1">
+                <p><strong>Titular:</strong> {qrInfo.titular}</p>
+                <p><strong>Cuenta:</strong> {qrInfo.cuenta}</p>
+              </div>
+
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 mb-6 text-left">
+                <strong>Instrucciones:</strong> Escanea este código QR con la aplicación móvil de tu banco (ej. Banca Móvil Ganadero) y transfiere el monto indicado. Luego, adjunta tu comprobante aquí abajo.
+              </div>
+
+              <div className="mb-6 text-left">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sube tu comprobante de transferencia *
+                </label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+                />
+                {comprobantePreview && (
+                  <div className="mt-3 relative inline-block">
+                    <img src={comprobantePreview} alt="Preview" className="h-32 rounded-lg border border-gray-200 object-contain" />
+                    <button 
+                      onClick={() => { setComprobanteFile(null); setComprobantePreview(null); }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-sm"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={handleConfirmQRPayment}
+                disabled={!comprobanteFile || processingOrder}
+                className="w-full py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold text-lg flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                {processingOrder ? 'Procesando...' : <><CheckCircle className="w-6 h-6" /> Confirmar Transferencia</>}
+              </button>
             </div>
           </div>
         </div>

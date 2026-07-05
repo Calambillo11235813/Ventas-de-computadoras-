@@ -17,6 +17,7 @@ from rest_framework.routers import DefaultRouter
 from .views import VentaViewSet, PagoVentaViewSet, DetalleVentaViewSet, FacturaPDFView, GarantiaViewSet, ResenaViewSet
 from .stripe_views import CreateCheckoutSessionView, ConfirmCheckoutView
 from .voz_views import VozIntencionView
+from .qr_views import QRBancoInfoView, QRPedidoView
 
 router = DefaultRouter()
 router.register(r'ventas',    VentaViewSet,        basename='venta')
@@ -30,5 +31,7 @@ urlpatterns = [
     path('ventas/<int:venta_id>/pdf/', FacturaPDFView.as_view(), name='factura-pdf'),
     path('stripe/create-checkout-session/', CreateCheckoutSessionView.as_view(), name='stripe-create-session'),
     path('stripe/confirm/', ConfirmCheckoutView.as_view(), name='stripe-confirm'),
+    path('qr-banco/info/', QRBancoInfoView.as_view(), name='qr-banco-info'),
+    path('qr-banco/pedido/', QRPedidoView.as_view(), name='qr-banco-pedido'),
     path('voz-intencion/', VozIntencionView.as_view(), name='voz-intencion'),
 ]

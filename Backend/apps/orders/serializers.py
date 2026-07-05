@@ -75,7 +75,7 @@ class VentaSerializer(serializers.ModelSerializer):
             'id', 'cliente', 'cliente_nombre',
             'usuario', 'usuario_nombre',
             'fecha_venta', 'monto_total', 'estado', 'estado_entrega',
-            'detalles', 'pagos', 'descuento_aplicado',
+            'detalles', 'pagos', 'descuento_aplicado', 'comprobante_url',
             # compat
             'total', 'status', 'fecha', 'cliente_name', 'vendedor', 'vendedor_name',
         ]

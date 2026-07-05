@@ -68,8 +68,8 @@ export function BackendTestComponent() {
     try {
       const response = await authAPI.login('admin@mail.com');
       setLoginUser(response.user);
-      localStorage.setItem('access_token', response.access);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      sessionStorage.setItem('access_token', response.access);
+      sessionStorage.setItem('user', JSON.stringify(response.user));
     } catch (err) {
       setError('Error en login: ' + (err instanceof Error ? err.message : 'Desconocido'));
     } finally {

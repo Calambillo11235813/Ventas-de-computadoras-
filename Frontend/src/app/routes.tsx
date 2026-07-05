@@ -37,6 +37,7 @@ import { Suppliers } from './pages/Suppliers';
 import { Store } from './pages/Store';
 import { Cart } from './pages/Cart';
 import { PaymentSuccess } from './pages/PaymentSuccess';
+import { QRPaymentSuccess } from './pages/QRPaymentSuccess';
 import { Orders } from './pages/Orders';
 import { Warranties } from './pages/Warranties';
 import { Reviews } from './pages/Reviews';
@@ -249,6 +250,22 @@ export const router = createBrowserRouter([
       <ProtectedRoute allowedRoles={['client']}>
         <Layout>
           <PaymentSuccess />
+        </Layout>
+      </ProtectedRoute>
+    )
+  },
+
+  /**
+   * /qr-payment-success - Retorno del pago con QR Bancario
+   * - Aquí llega el cliente tras confirmar que transfirió por QR
+   * - Acceso: Solo Clientes
+   */
+  {
+    path: '/qr-payment-success',
+    element: (
+      <ProtectedRoute allowedRoles={['client']}>
+        <Layout>
+          <QRPaymentSuccess />
         </Layout>
       </ProtectedRoute>
     )

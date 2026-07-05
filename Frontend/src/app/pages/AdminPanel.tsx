@@ -82,7 +82,7 @@ export function AdminPanel() {
       const endpoint = selectedUser.tabla === 'cliente'
         ? `${API_BASE_URL}/users/clientes/${selectedUser.id}/`
         : `${API_BASE_URL}/users/${selectedUser.id}/`;
-      const token = localStorage.getItem('access_token');
+      const token = sessionStorage.getItem('access_token');
       const res = await fetch(endpoint, {
         method: 'PATCH',
         headers: {

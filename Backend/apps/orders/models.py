@@ -83,6 +83,7 @@ class Venta(models.Model):
     pedido_online  = models.BooleanField(default=False)
     # Descuento VIP aplicado a esta venta (0 si el cliente no usó descuento)
     descuento_aplicado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    comprobante_url    = models.ImageField(upload_to='comprobantes/', max_length=500, null=True, blank=True)
 
     class Meta:
         managed             = False

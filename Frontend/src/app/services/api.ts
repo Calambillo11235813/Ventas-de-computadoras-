@@ -32,12 +32,12 @@ export const BACKEND_ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
 // ── Manejo del Token JWT ──────────────────────────────────────────────────────
 const TOKEN_KEY = 'access_token';
 
-// Guarda el token en localStorage después del login
-export const setAuthToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
-// Elimina el token del localStorage al hacer logout
-export const clearAuthToken = () => localStorage.removeItem(TOKEN_KEY);
-
-const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
+// Guarda el token en sessionStorage después del login
+export const setAuthToken = (token: string) => sessionStorage.setItem(TOKEN_KEY, token);
+// Elimina el token del sessionStorage al hacer logout
+export const clearAuthToken = () => sessionStorage.removeItem(TOKEN_KEY);
+// Lee el token actual
+const getToken = (): string | null => sessionStorage.getItem(TOKEN_KEY);
 
 // Genera los headers de autorización para peticiones protegidas
 const authHeaders = (): Record<string, string> => {
@@ -112,7 +112,7 @@ export const authAPI = {
   },
 
   logout: async (userData?: { usuario_id: number; usuario_nombre: string; usuario_rol: string }): Promise<void> => {
-    const token = localStorage.getItem('access_token');
+    const token = sessionStorage.getItem('access_token');
     await fetch(`${API_BASE_URL}/users/logout/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -553,6 +553,47 @@ export const stripeAPI = {
     });
     return handleJson(r);
   },
+};
+
+// ============ QR BANCARIO (Transferencia) ============
+export const qrBancoAPI = {
+  // Obtiene los datos del QR (imagen, cuenta, titular) para mostrar
+  getInfo: async (): Promise<{ qr_imagen: string; titular: string; cuenta: string }> => {
+    const r = await fetch(`${API_BASE_URL}/orders/qr-banco/info/`);
+    return handleJson(r);
+  },
+  // Crea la venta en estado pendiente con pago tipo 'transferencia' y adjunta comprobante
+  crearPedido: async (data: {
+    cliente: number;
+    detalles: { producto: number; cantidad: number; precio_unitario: number }[];
+    monto: number;
+    aplicar_descuento_vip: boolean;
+  }, comprobanteFile?: File | null): Promise<ApiVenta> => {
+    
+    let body: FormData | string;
+    let headers: Record<string, string>;
+
+    if (comprobanteFile) {
+      const fd = new FormData();
+      fd.append('cliente', String(data.cliente));
+      fd.append('monto', String(data.monto));
+      fd.append('aplicar_descuento_vip', String(data.aplicar_descuento_vip));
+      fd.append('detalles', JSON.stringify(data.detalles)); // Backend parcerá este JSON string
+      fd.append('comprobante', comprobanteFile);
+      body = fd;
+      headers = authHeaders(); // fetch pondrá el boundary para multipart/form-data solo
+    } else {
+      body = JSON.stringify(data);
+      headers = { 'Content-Type': 'application/json', ...authHeaders() };
+    }
+
+    const r = await fetch(`${API_BASE_URL}/orders/qr-banco/pedido/`, {
+      method: 'POST',
+      headers,
+      body,
+    });
+    return handleJson(r);
+  }
 };
 
 // ============ GARANTÍAS ============
