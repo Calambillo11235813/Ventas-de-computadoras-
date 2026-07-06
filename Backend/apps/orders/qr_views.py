@@ -43,12 +43,9 @@ class QRPedidoView(APIView):
         if not cliente_id or not detalles:
             return Response({"detail": "Faltan datos del cliente o productos."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Usar el usuario actual si hay, PERO solo si es un empleado (no cliente)
+        # Como este es un pedido online hecho por el cliente desde la tienda,
+        # NO hay ningún empleado ('usuario') que esté registrando la venta.
         usuario_id = None
-        if request.user and request.user.is_authenticated:
-            if hasattr(request, 'auth') and hasattr(request.auth, 'get'):
-                if request.auth.get('role') != 'cliente':
-                    usuario_id = getattr(request.user, 'id', None)
 
         serializer = VentaCreateSerializer(data={
             'cliente': cliente_id,
