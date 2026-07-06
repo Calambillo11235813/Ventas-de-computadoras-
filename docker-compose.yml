@@ -1,0 +1,70 @@
+# ============================================================================
+# Docker Compose — Santa Cruz Computer
+#
+# Levanta los 3 servicios del proyecto con un solo comando:
+#   docker compose up --build
+#
+# Servicios:
+#   db       → PostgreSQL 16 (datos persistentes en volumen)
+#   web      → Django + Gunicorn (API REST en puerto 8000)
+#   frontend → React + Nginx (SPA en puerto 80)
+#
+# La BD se inicializa automáticamente con full_backup.sql (schema + datos)
+# solo la primera vez. Para reiniciar: docker compose down -v
+# ============================================================================
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL ejecuta este script solo cuando el volumen está vacío (1ra vez)
+      - ./Backend/sql/full_backup.sql:/docker-entrypoint-initdb.d/01_restore.sql
+    environment:
+      POSTGRES_DB: Santacruzcomputer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: nicolas123
+    ports:
+      - "5433:5432"   # 5433 para no chocar con tu Postgres local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d Santacruzcomputer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Backend Django + Gunicorn ──────────────────────────────────────────────
+  web:
+    build: ./Backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: ./Backend/.env
+    environment:
+      # Sobreescribimos DB_HOST para apuntar al contenedor db (no a localhost)
+      DB_HOST: db
+      DATABASE_URL: postgres://postgres:nicolas123@db:5432/Santacruzcomputer
+    volumes:
+      # Media persistente (imágenes de productos, comprobantes QR)
+      - ./Backend/media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Frontend React + Nginx ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./Frontend
+      args:
+        # En Docker, el frontend accede a la API vía Nginx proxy (/api/)
+        # No necesita localhost:8000 porque Nginx reenvía internamente
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
