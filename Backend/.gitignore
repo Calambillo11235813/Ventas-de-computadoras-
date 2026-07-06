@@ -28,6 +28,7 @@ wheels/
 local_settings.py
 db.sqlite3
 media/
+!media/YAPE_QR.jpg
 staticfiles/
 
 # IDE
