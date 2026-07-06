@@ -65,6 +65,8 @@ services:
       - "80:80"
     depends_on:
       - web
+    volumes:
+      - ./Backend/media:/usr/share/nginx/html/media
 
 volumes:
   postgres_data:
